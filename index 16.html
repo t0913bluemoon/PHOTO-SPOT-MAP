@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>PHOTO SPOT LOG</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-bar">
+  <div class="app-bar-top">
+    <h1 class="app-title">PHOTO SPOT LOG</h1>
+    <p class="app-stats">
+      <span id="totalCount">0</span>件登録<span class="stats-sep">/</span><span id="visitedCount">0</span>件撮影済み
+    </p>
+  </div>
+
+  <nav class="filter-tabs" id="filterTabs" aria-label="カテゴリで絞り込み">
+    <button class="tab is-active" data-filter="all">すべて</button>
+    <button class="tab tab-rail" data-filter="rail">🚃 鉄道</button>
+    <button class="tab tab-bus" data-filter="bus">🚌 バス</button>
+    <button class="tab tab-flower" data-filter="flower">🌸 花・風景</button>
+  </nav>
+</header>
+
+<div class="app-body">
+
+  <main class="map-pane">
+    <div id="map"></div>
+
+    <p class="map-banner" id="mapBanner" hidden>地図をタップして位置を選択</p>
+
+    <div class="map-fabs">
+      <button class="fab fab-secondary" id="locateBtn" aria-label="現在地を取得">
+        <span class="fab-icon" id="locateIcon">◎</span>
+      </button>
+      <button class="fab fab-primary" id="recordBtn" aria-label="スポットを記録">
+        <span class="fab-icon">＋</span>
+        <span class="fab-label">記録</span>
+      </button>
+    </div>
+    <p class="locate-status" id="locateStatus"></p>
+  </main>
+
+  <aside class="spot-drawer" id="spotDrawer">
+    <button class="drawer-handle" id="drawerHandle" aria-label="一覧の開閉">
+      <span class="handle-bar"></span>
+      <span class="handle-label"><span id="spotCount">0</span> 件のスポット</span>
+    </button>
+    <div class="drawer-toolbar">
+      <button class="sort-toggle" id="sortToggle" aria-pressed="false">
+        <span class="sort-icon">◎</span> 現在地から近い順
+      </button>
+    </div>
+    <div class="spot-list" id="spotList"></div>
+  </aside>
+
+</div>
+
+<!-- Spot detail sheet -->
+<div class="sheet-overlay" id="ticketOverlay">
+  <div class="spot-sheet" id="ticketCard">
+    <button class="sheet-close" id="ticketClose" aria-label="閉じる">×</button>
+    <div class="spot-sheet-photo" id="ticketPhoto">
+      <span class="spot-sheet-photo-icon" id="ticketPhotoIcon"></span>
+      <div class="ticket-stamp" id="ticketStamp">撮影<br>済</div>
+    </div>
+    <div class="ticket-perf" aria-hidden="true"></div>
+    <div class="spot-sheet-body">
+      <div class="spot-sheet-head">
+        <span class="tag" id="ticketCategory"></span>
+        <button class="visited-toggle" id="visitedToggle" aria-pressed="false">
+          <span class="visited-icon">✓</span><span id="visitedToggleLabel">撮影済みにする</span>
+        </button>
+      </div>
+      <h2 class="spot-sheet-name" id="ticketName"></h2>
+      <p class="spot-sheet-line" id="ticketLine"></p>
+      <p class="spot-sheet-memo" id="ticketMemo"></p>
+      <p class="spot-sheet-season" id="ticketSeason"></p>
+      <div class="spot-sheet-actions" id="ticketActions" hidden>
+        <button class="spot-sheet-edit" id="ticketEdit">編集する</button>
+        <button class="spot-sheet-delete" id="ticketDelete">この記録を削除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add spot sheet -->
+<div class="sheet-overlay" id="addOverlay">
+  <div class="add-sheet" id="addSheet">
+    <button class="sheet-close" id="addClose" aria-label="閉じる">×</button>
+    <h2 class="add-sheet-title" id="addSheetTitle">スポットを記録</h2>
+
+    <div class="add-step" id="addStepLocation">
+      <p class="add-label">位置<span class="req">必須</span></p>
+      <p class="add-location-value" id="addLocationValue">未選択</p>
+      <div class="add-location-actions">
+        <button type="button" class="btn btn-outline" id="addUseLocation">現在地を使う</button>
+        <button type="button" class="btn btn-outline" id="addPickOnMap">地図でタップして選ぶ</button>
+      </div>
+    </div>
+
+    <div class="add-step" id="addStepDetails" hidden>
+      <label class="add-label" for="addName">名称<span class="req">必須</span></label>
+      <input class="add-input" id="addName" type="text" placeholder="例：〇〇踏切" maxlength="40">
+
+      <p class="add-label">カテゴリ<span class="req">必須</span></p>
+      <div class="add-category-chips" id="addCategoryChips">
+        <button type="button" class="tab tab-rail" data-category="rail">🚃 鉄道</button>
+        <button type="button" class="tab tab-bus" data-category="bus">🚌 バス</button>
+        <button type="button" class="tab tab-flower" data-category="flower">🌸 花・風景</button>
+      </div>
+
+      <label class="add-label" for="addLine">路線・系統名</label>
+      <input class="add-input" id="addLine" type="text" placeholder="例：JR函館本線" maxlength="40">
+
+      <label class="add-label" for="addMemo">メモ</label>
+      <textarea class="add-input" id="addMemo" rows="3" placeholder="構図・注意点など" maxlength="300"></textarea>
+
+      <label class="add-label" for="addSeason">おすすめ時期</label>
+      <input class="add-input" id="addSeason" type="text" placeholder="例：6月〜9月" maxlength="20">
+
+      <label class="add-label" for="addPhoto">写真（任意）</label>
+      <div class="add-photo-picker">
+        <input class="add-photo-input" id="addPhoto" type="file" accept="image/*">
+        <label class="add-photo-trigger" for="addPhoto" id="addPhotoTrigger">
+          <span class="add-photo-trigger-icon">＋</span>
+          <span>写真を選ぶ</span>
+        </label>
+        <div class="add-photo-preview" id="addPhotoPreview" hidden>
+          <img id="addPhotoPreviewImg" alt="">
+          <button type="button" class="add-photo-remove" id="addPhotoRemove" aria-label="写真を削除">×</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="add-actions">
+      <button type="button" class="btn btn-primary" id="addSave" disabled>記録する</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
