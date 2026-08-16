@@ -28,7 +28,7 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
-  --font-display: "Shippori Mincho", serif;
+  --font-display: "Zen Kaku Gothic New", sans-serif;
   --font-body: "Zen Kaku Gothic New", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Roboto Mono", Consolas, monospace;
 }
