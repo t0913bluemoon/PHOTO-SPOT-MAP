@@ -1,0 +1,825 @@
+/* ============================================================
+   撮影地帳 - 硬券・駅スタンプ帳をモチーフにした撮影記録アプリ
+   ============================================================ */
+
+:root{
+  --paper:       #F5F0E3;
+  --paper-2:     #EAE2CC;
+  --paper-3:     #F9F6EC;
+  --line:        #D7CDAF;
+  --ink:         #26241F;
+  --ink-soft:    #6A6455;
+  --ink-faint:   #9C9581;
+
+  --rail:        #2B4E63;
+  --rail-soft:   #E1E8EA;
+  --bus:         #47603D;
+  --bus-soft:    #E6EAE0;
+  --flower:      #8E4353;
+  --flower-soft: #F1E0E3;
+
+  --brass:        #A9762E;
+  --brass-deep:   #7C551F;
+  --brass-soft:   #F1E4C8;
+
+  --shadow: 0 10px 28px rgba(38,36,31,0.16);
+  --shadow-sm: 0 3px 10px rgba(38,36,31,0.14);
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --font-display: "Zen Kaku Gothic New", sans-serif;
+  --font-body: "Zen Kaku Gothic New", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Roboto Mono", Consolas, monospace;
+}
+
+*{ box-sizing: border-box; }
+*:focus-visible{ outline: 2px solid var(--brass); outline-offset: 2px; }
+
+html, body{
+  margin:0; padding:0; height:100%;
+  color: var(--ink);
+  font-family: var(--font-body);
+  overscroll-behavior: none;
+}
+
+body{
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(38,36,31,0.045) 1px, transparent 0) 0 0/15px 15px,
+    var(--paper);
+}
+
+button{ font-family: inherit; }
+
+@media (prefers-reduced-motion: reduce){
+  *{ transition: none !important; animation: none !important; }
+}
+
+/* ---------------- Header / app bar ---------------- */
+.app-bar{
+  position: relative;
+  flex: 0 0 auto;
+  background: var(--paper-3);
+  border-bottom: 1px solid var(--ink);
+}
+.app-bar::after{
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -5px;
+  height: 1px;
+  background-image: repeating-linear-gradient(to right, var(--ink-faint) 0 6px, transparent 6px 13px);
+  opacity: .6;
+}
+
+.app-bar-top{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(15px + var(--safe-top)) 16px 10px;
+}
+
+.app-title{
+  margin: 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+
+.app-stats{
+  margin: 0;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.app-stats span{ color: var(--ink); font-weight: 700; }
+.stats-sep{ margin: 0 3px; color: var(--ink-faint); font-weight: 400 !important; }
+
+/* ---------------- Filter tabs: 未使用券 / 使用済券 の切符トグル ---------------- */
+.filter-tabs{
+  display: flex;
+  gap: 7px;
+  padding: 0 16px 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.filter-tabs::-webkit-scrollbar{ display: none; }
+
+.tab{
+  flex: 0 0 auto;
+  padding: 7px 13px;
+  border-radius: 7px;
+  border: 1.5px dashed var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+  white-space: nowrap;
+}
+.tab.is-active{
+  border-style: solid;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.tab-rail.is-active{ background: var(--rail); border-color: var(--rail); }
+.tab-bus.is-active{ background: var(--bus); border-color: var(--bus); }
+.tab-flower.is-active{ background: var(--flower); border-color: var(--flower); }
+
+/* ---------------- Layout ---------------- */
+.app-body{
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-pane{
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+#map{
+  width: 100%;
+  height: 100%;
+  background: var(--paper-2);
+}
+.leaflet-container{ font-family: var(--font-body); background: var(--paper-2); }
+.leaflet-tile-pane{ filter: sepia(10%) saturate(82%) brightness(1.02); }
+
+.map-banner{
+  position: absolute;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12.5px;
+  font-weight: 700;
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  z-index: 600;
+}
+
+/* ---------------- FABs ---------------- */
+.map-fabs{
+  position: absolute;
+  right: 12px;
+  bottom: calc(100px + var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 450;
+}
+.fab{
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fab-secondary{
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  background: var(--paper-3);
+  border: 1.5px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 17px;
+}
+.fab-secondary.is-active{ background: var(--rail); border-color: var(--rail); color: var(--paper); }
+.fab-secondary.is-loading .fab-icon{ animation: fab-pulse 1s ease-in-out infinite; }
+@keyframes fab-pulse{ 0%,100%{ opacity:.4; } 50%{ opacity:1; } }
+
+.fab-primary{
+  min-width: 58px;
+  height: 46px;
+  padding: 0 16px;
+  border-radius: 11px;
+  background: var(--brass);
+  color: var(--paper-3);
+  font-size: 13px;
+  font-weight: 700;
+  gap: 5px;
+}
+.fab-primary .fab-icon{ font-size: 17px; font-weight: 400; line-height: 1; }
+.fab-primary.is-picking{ background: var(--ink); }
+
+.locate-status{
+  position: absolute;
+  left: 12px; bottom: calc(12px + var(--safe-bottom));
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: rgba(249,246,236,0.92);
+  padding: 4px 9px;
+  border-radius: 6px;
+}
+
+.current-dot{
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--rail);
+  border: 3px solid var(--paper-3);
+  box-shadow: 0 0 0 2px var(--rail), var(--shadow-sm);
+}
+
+/* ---------------- Drawer toolbar ---------------- */
+.drawer-toolbar{
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0 14px 8px;
+}
+.sort-toggle{
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1.5px dashed var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sort-toggle[aria-pressed="true"]{
+  border-style: solid;
+  background: var(--brass);
+  border-color: var(--brass);
+  color: var(--paper-3);
+}
+.sort-icon{ font-size: 12px; }
+
+/* ---------------- Map pins ---------------- */
+.pin{
+  position: relative;
+  width: 34px; height: 42px;
+  cursor: pointer;
+}
+.pin-body{
+  width: 30px; height: 30px;
+  border-radius: 8px 8px 8px 2px;
+  transform: rotate(45deg);
+  position: absolute;
+  top: 2px; left: 2px;
+  box-shadow: var(--shadow-sm);
+  border: 2px solid rgba(249,246,236,0.9);
+}
+.pin-icon{
+  position: absolute;
+  top: 8px; left: 0; right: 0;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1;
+}
+.pin-rail .pin-body{ background: var(--rail); }
+.pin-bus .pin-body{ background: var(--bus); }
+.pin-flower .pin-body{ background: var(--flower); }
+
+.pin.is-selected{ transform: scale(1.12); }
+.pin.is-selected .pin-body{ box-shadow: 0 0 0 3px rgba(169,118,46,0.38), var(--shadow); }
+
+.pin-visited{
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--brass);
+  border: 2px solid var(--paper-3);
+  color: var(--paper-3);
+  font-size: 8px;
+  font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2;
+}
+
+.leaflet-popup{ display: none; }
+
+/* ---------------- Spot drawer (list) ---------------- */
+.spot-drawer{
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  max-height: 46%;
+  background: var(--paper-3);
+  border-top: 1px solid var(--ink);
+  box-shadow: 0 -6px 18px rgba(38,36,31,0.12);
+  display: flex; flex-direction: column;
+  transform: translateY(calc(100% - 46px));
+  transition: transform .28s ease;
+  z-index: 500;
+  border-radius: 16px 16px 0 0;
+}
+.spot-drawer.is-open{ transform: translateY(0); }
+
+.drawer-handle{
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px;
+  padding: 10px 0 calc(10px + var(--safe-bottom));
+  background: none; border: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.handle-bar{
+  width: 34px; height: 3px;
+  border-radius: 4px;
+  background: var(--brass);
+}
+.handle-label{ font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+.handle-label span{ font-family: var(--font-mono); color: var(--ink); }
+
+.spot-list{
+  overflow-y: auto;
+  padding: 2px 12px calc(14px + var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.spot-card{
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 9px 11px;
+  background: var(--paper-3);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .12s ease, background .12s ease;
+}
+.spot-card:hover{ border-color: var(--brass); background: var(--paper); }
+
+.spot-card-icon{
+  flex: 0 0 auto;
+  width: 42px; height: 42px;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.spot-card-icon.rail{ background: var(--rail-soft); }
+.spot-card-icon.bus{ background: var(--bus-soft); }
+.spot-card-icon.flower{ background: var(--flower-soft); }
+
+.spot-card-icon.has-photo{
+  background-color: var(--paper-2);
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--line);
+}
+
+/* 写真がある時だけ表示する、左上の小さいカテゴリ判 */
+.spot-card-cat-badge{
+  position: absolute;
+  top: -3px; left: -3px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px;
+  color: var(--paper-3);
+  border: 2px solid var(--paper-3);
+  box-shadow: var(--shadow-sm);
+}
+.spot-card-cat-badge.rail{ background: var(--rail); }
+.spot-card-cat-badge.bus{ background: var(--bus); }
+.spot-card-cat-badge.flower{ background: var(--flower); }
+
+.spot-card-visited{
+  position: absolute;
+  bottom: -4px; right: -4px;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  background: var(--brass);
+  border: 2px solid var(--paper-3);
+  color: var(--paper-3);
+  font-size: 8px;
+  font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  transform: rotate(-10deg);
+}
+
+.spot-card-text{ flex: 1; min-width: 0; }
+.spot-card-name{
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.spot-card-line{
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spot-card-distance{
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--brass-deep);
+  background: var(--brass-soft);
+  padding: 3px 7px;
+  border-radius: 6px;
+}
+
+.spot-empty{
+  padding: 22px 8px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* ---------------- Sheets (spot detail / add spot) ---------------- */
+.sheet-overlay{
+  position: fixed; inset: 0;
+  background: rgba(38,36,31,0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  z-index: 1000;
+}
+.sheet-overlay.is-open{ display: flex; }
+
+.spot-sheet, .add-sheet{
+  position: relative;
+  width: 100%; max-width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--paper-3);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+.spot-sheet::before, .add-sheet::before{
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 4px;
+  background: var(--brass);
+  border-radius: 18px 18px 0 0;
+  z-index: 3;
+}
+
+.sheet-close{
+  position: absolute; top: 12px; right: 10px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(38,36,31,0.55);
+  color: var(--paper-3);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 4;
+}
+
+.spot-sheet-photo{
+  position: relative;
+  height: 150px;
+  background: var(--paper-2) center/cover no-repeat;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.spot-sheet-photo-icon{
+  font-size: 30px;
+  color: var(--ink-faint);
+}
+
+/* 撮影済みの押印演出（このアプリの署名要素） */
+.ticket-stamp{
+  position: absolute;
+  top: 14px; right: 16px;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  border: 3px solid var(--brass);
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1.25;
+  letter-spacing: 0.05em;
+  color: var(--brass);
+  background: rgba(249,246,236,0.78);
+  transform: rotate(-16deg) scale(0.85);
+  opacity: 0;
+  transition: opacity .18s ease, transform .18s ease;
+  pointer-events: none;
+}
+.spot-sheet-photo.is-visited .ticket-stamp{
+  opacity: 1;
+  transform: rotate(-16deg) scale(1);
+}
+
+/* 切符の切り離し線 */
+.ticket-perf{
+  height: 11px;
+  background-image: repeating-linear-gradient(to right, var(--line) 0 6px, transparent 6px 14px);
+  background-position: center;
+  opacity: .8;
+}
+
+.spot-sheet-body{ padding: 14px 18px calc(22px + var(--safe-bottom)); }
+
+.spot-sheet-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tag{
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1.5px dashed currentColor;
+  background: transparent;
+}
+.tag.rail{ color: var(--rail); }
+.tag.bus{ color: var(--bus); }
+.tag.flower{ color: var(--flower); }
+
+.visited-toggle{
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px dashed var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.visited-icon{ font-size: 11px; font-weight: 900; }
+.visited-toggle[aria-pressed="true"]{
+  border-style: solid;
+  background: var(--brass-soft);
+  border-color: var(--brass);
+  color: var(--brass-deep);
+}
+
+.spot-sheet-name{
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+}
+.spot-sheet-line{
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.spot-sheet-memo{
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  line-height: 1.8;
+  white-space: pre-line;
+}
+.spot-sheet-season{
+  margin: 0;
+  font-size: 12px;
+  color: var(--brass-deep);
+  font-weight: 700;
+}
+.spot-sheet-season:not(:empty)::before{ content: "◆ "; }
+
+.spot-sheet-actions{
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+.spot-sheet-edit,
+.spot-sheet-delete{
+  flex: 1;
+  margin-top: 0;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1.5px dashed var(--line);
+  background: none;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.spot-sheet-edit{ color: var(--ink-soft); }
+.spot-sheet-edit:hover{ border-color: var(--brass); border-style: solid; color: var(--brass-deep); }
+.spot-sheet-delete{ color: var(--ink-faint); }
+.spot-sheet-delete:hover{ border-color: #A8433B; color: #A8433B; }
+
+/* ---------------- Add-spot sheet ---------------- */
+.add-sheet{ padding: 20px 18px calc(20px + var(--safe-bottom)); }
+.add-sheet-title{
+  margin: 0 0 16px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.add-step + .add-step{ margin-top: 4px; }
+
+.add-label{
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.add-label:first-child{ margin-top: 0; }
+.req{
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--brass-deep);
+  border: 1px solid var(--brass);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.add-location-value{
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper-2);
+  border: 1.5px dashed var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.add-location-actions{
+  display: flex;
+  gap: 8px;
+}
+
+.btn{
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 10px 14px;
+}
+.btn-outline{
+  flex: 1;
+  border: 1.5px dashed var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+.btn-outline:hover{ border-color: var(--ink); border-style: solid; }
+.btn-primary{
+  width: 100%;
+  border: none;
+  background: var(--brass);
+  color: var(--paper-3);
+}
+.btn-primary:hover:not(:disabled){ background: var(--brass-deep); }
+.btn-primary:disabled{
+  background: var(--line);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.add-input{
+  width: 100%;
+  border: none;
+  border-bottom: 1.5px solid var(--line);
+  border-radius: 0;
+  padding: 9px 2px;
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: transparent;
+  transition: border-color .12s ease;
+}
+.add-input:focus{ border-bottom-color: var(--brass); }
+textarea.add-input{
+  border: 1.5px dashed var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+textarea.add-input:focus{ border-color: var(--brass); }
+
+.add-category-chips{
+  display: flex;
+  gap: 6px;
+}
+.add-category-chips .tab{ flex: 1; text-align: center; }
+
+/* ---------------- Photo picker ---------------- */
+.add-photo-picker{ position: relative; }
+.add-photo-input{
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.add-photo-trigger{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 88px;
+  border: 1.5px dashed var(--line);
+  border-radius: 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--paper-2);
+}
+.add-photo-trigger-icon{
+  font-size: 16px;
+  color: var(--brass-deep);
+}
+.add-photo-preview{
+  position: relative;
+  height: 140px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.add-photo-preview img{
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.add-photo-remove{
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(38,36,31,0.6);
+  color: var(--paper-3);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.add-actions{ margin-top: 18px; display: flex; gap: 8px; }
+.add-actions .btn-primary{ flex: 1; }
+
+/* ---------------- Responsive: desktop ---------------- */
+@media (min-width: 860px){
+  .app-body{ flex-direction: row; }
+
+  .map-pane{ order: 1; flex: 1; }
+
+  .spot-drawer{
+    order: 2;
+    position: relative;
+    width: 328px;
+    max-height: none;
+    height: 100%;
+    border-top: none;
+    border-left: 1px solid var(--ink);
+    box-shadow: none;
+    transform: none;
+    border-radius: 0;
+  }
+  .drawer-handle{ display: none; }
+  .spot-list{ padding: 12px; }
+
+  .sheet-overlay{ align-items: center; }
+  .spot-sheet, .add-sheet{
+    max-width: 380px;
+    max-height: 84vh;
+    border-radius: 16px;
+  }
+  .spot-sheet::before, .add-sheet::before{ border-radius: 16px 16px 0 0; }
+}
